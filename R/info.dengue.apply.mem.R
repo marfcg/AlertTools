@@ -35,8 +35,6 @@
 #' mun_list <- c(3304557, 4106902, 3205309)
 #' mun_list <- c(3205309)
 #' cid <- getCidades(uf = "Minas Gerais", datasource=cond)
-#' info.dengue.apply.mem(con=cond, passwd=password, start_year=0, mun_list=cid$municipio_geocodigo, write='db')
-#' 
 #' thresholds.table <- info.dengue.apply.mem(con=cond, passwd=password, start_year=0, mun_list=mun_list)
 #' 
 #' Write to database instead of returning object:
@@ -70,7 +68,21 @@ info.dengue.apply.mem <- function(mun_list, start_year=0, end_year=as.integer(fo
   # Prepare output data table
   thresholds.table <-   data.table('municipio_geocodigo'=integer(), 'ano_inicio'=integer(), 'ano_fim'=integer(),
                                    'pre'=double(), 'pos'=double(), 'muitoalta'=double())
+  thresholds.typical <- data.table('municipio_geocodigo'=integer(), 'SE'=integer(),
+                                   'baixo'=double(), 'mediano'=double(), 'alto'=double())
   
+  # Auxiliary function to bind typical curve output from applymem:
+  bind.typical.curve <- function(mun_list, report){
+    out <- data.table('municipio_geocodigo'=integer(), 'SE'=integer(),
+                      'baixo'=double(), 'mediano'=double(), 'alto'=double())
+    for (geo in mun_list){
+      tmp <- report[[geo]]$typ.real.curve
+      tmp$municipio_geocodigo <- geo
+      out <- rbindlist(out, tmp, use.names=TRUE)
+    }
+    return(out)
+  }
+
   # Run by chuncks:
   for (mun_chunck in mun_list){
     # Read historical cases table
@@ -99,8 +111,9 @@ info.dengue.apply.mem <- function(mun_list, start_year=0, end_year=as.integer(fo
     thresholds <- applymem(dfsimple, seasons, i.n.max=i.n.max, i.level.threshold=limiar.preseason,
                            i.level.intensity=limiar.epidemico,
                            i.type.curve=i.type.curve, i.type.threshold=i.type.threshold,
-                           i.type.intensity=i.type.intensity, ...)$dfthresholds[base.cols]
-    thresholds.tab <- merge(thresholds.tab, thresholds, by='municipio_geocodigo', all=TRUE)
+                           i.type.intensity=i.type.intensity, ...)
+    
+    thresholds.tab <- merge(thresholds.tab, thresholds$dfthresholds[base.cols], by='municipio_geocodigo', all=TRUE)
     thresholds.tab[,c('casos_pre', 'casos_pos', 'casos_muitoalta')] <- 
       data.table(t(apply(thresholds.tab[, base.cols], 1, function(x)
         df.pop$populacao[df.pop$municipio_geocodigo == x[1]]*as.numeric(x[2:4])/100000)))
@@ -125,7 +138,11 @@ info.dengue.apply.mem <- function(mun_list, start_year=0, end_year=as.integer(fo
     thresholds.tab$ano_inicio <- start_year
     thresholds.tab$ano_fim <- end_year
     thresholds.tab <- thresholds.tab[, c('municipio_geocodigo', 'ano_inicio', 'ano_fim','pre', 'pos', 'muitoalta')]
-    thresholds.table <- rbindlist(list(thresholds.table, thresholds.tab))
+    thresholds.table <- rbindlist(list(thresholds.table, thresholds.tab), use.names=TRUE)
+    
+    # Store endemic channels:
+    typical.curves <- bind.typical.curve(mun_chunck, thresholds$epimemthresholds)
+    thresholds.typical <- rbindlist(thresholds.typical, typical.curves, use.names=TRUE)
     
   }
   thresholds.table <- rename(thresholds.table, replace=c('pre'='limiar_preseason', 'pos'='limiar_posseason',

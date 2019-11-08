@@ -103,7 +103,6 @@ applymem <- function(df.data, l.seasons, ...){
       discard <- NULL
       prethreshold <- epitmp$pre.post.intervals[1,3]
       postthreshold <- epitmp$pre.post.intervals[2,3]
-      epitmp$typ.real.curve <- epitmp$typ.curve 
       typ.real.curve <- rename(data.frame(epitmp$typ.real.curve), c('X1'='baixo', 'X2'='mediano' ,'X3'='alto'))
       # Clean typical curve:
       typ.real.curve$mediano[is.na(typ.real.curve$mediano)] <- 0
@@ -113,7 +112,6 @@ applymem <- function(df.data, l.seasons, ...){
       
       episeasons <- sapply(non.null.seasons, max, na.rm=TRUE) > prethreshold
       epitmp <- memmodel(i.data=non.null.seasons[, episeasons], ...)
-      epitmp$typ.real.curve <- epitmp$typ.curve 
       prethreshold <- epitmp$pre.post.intervals[1,3]
       postthreshold <- epitmp$pre.post.intervals[2,3]
       
