@@ -79,7 +79,8 @@ applymem <- function(df.data, l.seasons, ...){
   municipio_geocodigoids <- unique(df.data$municipio_geocodigo)
   
   # Prepare output objects
-  epithresholds <- list()
+  epithresholds <- vector('list', length(municipio_geocodigoids))
+  names(epithresholds) <- municipio_geocodigoids
   df.typ.real.curve <-data.frame() # Typical seasonal curve
   dfthresholds <- data.frame(municipio_geocodigoids)
   dfthresholds <- rename(dfthresholds, c('municipio_geocodigoids'='municipio_geocodigo'))
@@ -103,12 +104,14 @@ applymem <- function(df.data, l.seasons, ...){
       discard <- NULL
       prethreshold <- epitmp$pre.post.intervals[1,3]
       postthreshold <- epitmp$pre.post.intervals[2,3]
-      typ.real.curve <- rename(data.frame(epitmp$typ.real.curve), c('X1'='baixo', 'X2'='mediano' ,'X3'='alto'))
+      typ.real.curve <- rename(data.frame(epitmp$typ.real.curve), c('X1'='corredor_baixo', 'X2'='corredor_mediano' ,'X3'='corredor_alto'))
       # Clean typical curve:
-      typ.real.curve$mediano[is.na(typ.real.curve$mediano)] <- 0
-      typ.real.curve$baixo[typ.real.curve$baixo < 0] <- 0
-      typ.real.curve$baixo[is.na(typ.real.curve$baixo)] <- typ.real.curve$mediano[is.na(typ.real.curve$baixo)]
-      typ.real.curve$alto[is.na(typ.real.curve$alto)] <- typ.real.curve$mediano[is.na(typ.real.curve$alto)]
+      typ.real.curve$corredor_mediano[is.na(typ.real.curve$corredor_mediano)] <- 0
+      typ.real.curve$corredor_baixo[typ.real.curve$corredor_baixo < 0] <- 0
+      typ.real.curve$corredor_baixo[is.na(typ.real.curve$corredor_baixo)] <- typ.real.curve$corredor_mediano[is.na(typ.real.curve$corredor_baixo)]
+      typ.real.curve$corredor_alto[is.na(typ.real.curve$corredor_alto)] <- typ.real.curve$corredor_mediano[is.na(typ.real.curve$corredor_alto)]
+      typ.real.curve['SE'] <- c(seq(41,52), seq(1,40))
+      typ.real.curve['t'] <- seq(1,52)
       
       episeasons <- sapply(non.null.seasons, max, na.rm=TRUE) > prethreshold
       epitmp <- memmodel(i.data=non.null.seasons[, episeasons], ...)
@@ -116,11 +119,10 @@ applymem <- function(df.data, l.seasons, ...){
       postthreshold <- epitmp$pre.post.intervals[2,3]
       
       # Store full report in epithresholds:
-      epithresholds[[geocod]] <- epitmp
+      epithresholds[[as.character(geocod)]] <- epitmp
       
       # Store typical curves from full set of seasons
-      epithresholds[[geocod]]$typ.real.curve <- typ.real.curve
-      epithresholds[[geocod]]$typ.real.curve['SE'] <- c(seq(41,52), seq(1,40))
+      epithresholds[[as.character(geocod)]]$typ.real.curve <- typ.real.curve
       
       # Store epidemic thresholds
       dfthresholds$pre[dfthresholds$municipio_geocodigo==geocod] <- prethreshold
